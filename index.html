@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Bisnis Ban Bekas (Ton)</title>
+    <!-- CDN Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS Responsif Tabel ke Tampilan Menumpuk (Card View) untuk Mobile */
+        @media (max-width: 767px) {
+            .responsive-table table, 
+            .responsive-table thead, 
+            .responsive-table tbody, 
+            .responsive-table th, 
+            .responsive-table td, 
+            .responsive-table tr { 
+                display: block; 
+            }
+            
+            .responsive-table thead tr { 
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            
+            .responsive-table tr { 
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                margin-bottom: 0.75rem;
+                padding: 0.5rem;
+                background-color: #ffffff;
+                box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            }
+            
+            .responsive-table td { 
+                border: none;
+                position: relative;
+                padding-left: 50% !important;
+                text-align: right !important;
+                padding-top: 0.375rem;
+                padding-bottom: 0.375rem;
+            }
+            
+            .responsive-table td:before { 
+                position: absolute;
+                top: 0.375rem;
+                left: 0.75rem;
+                width: 45%; 
+                padding-right: 10px; 
+                white-space: nowrap;
+                text-align: left;
+                font-weight: 600;
+                color: #4b5563;
+                content: attr(data-label);
+            }
+
+            .responsive-table td.action-cell {
+                padding-left: 0.75rem !important;
+                text-align: center !important;
+            }
+            
+            .responsive-table td.action-cell:before {
+                content: "";
+            }
+        }
+
+        /* CSS Khusus Cetak / Print / PDF */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                padding: 0 !important;
+            }
+            #tireForm, #processBtn, .no-print, th:last-child, td:last-child {
+                display: none !important;
+            }
+            .shadow-md, .shadow-lg, .shadow {
+                box-shadow: none !important;
+            }
+            .max-w-7xl {
+                max-width: 100% !important;
+            }
+            #resultSection {
+                display: block !important;
+                border-top: none !important;
+            }
+            /* Kembalikan ke tampilan tabel normal saat diprint */
+            .responsive-table table { display: table !important; }
+            .responsive-table thead { display: table-header-group !important; }
+            .responsive-table tbody { display: table-row-group !important; }
+            .responsive-table tr { display: table-row !important; border: none !important; }
+            .responsive-table td { display: table-cell !important; padding-left: 0.75rem !important; text-align: left !important; }
+            .responsive-table td:before { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-3 md:p-8">
+
+    <div class="max-w-7xl mx-auto bg-white p-4 md:p-6 rounded-xl shadow-md space-y-6">
+        <!-- Header -->
+        <div class="border-b pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-gray-800">Kalkulator & Management Ban Bekas (Satuan Ton)</h1>
+                <p class="text-xs md:text-sm text-gray-500">Kelola sumber, volume (tonase), harga, dan hitung estimasi laba usaha secara presisi.</p>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-xs text-blue-800 no-print">
+                <strong>Catatan Satuan:</strong> Seluruh perhitungan volume stok, harga beli, dan harga jual berbasis <strong>Ton</strong>.
+            </div>
+        </div>
+
+        <!-- Form Input Data -->
+        <form id="tireForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <input type="hidden" id="editId" value="">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Sumber Ban / Penjual</label>
+                <input type="text" id="source" placeholder="Contoh: UD Karet Makmur" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Lokasi (Kota/Daerah)</label>
+                <input type="text" id="location" placeholder="Contoh: Surabaya" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Link Google Maps (URL)</label>
+                <input type="url" id="mapUrl" placeholder="https://maps.google.com/..." class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Stok Tersedia (Ton)</label>
+                <input type="number" step="0.01" id="stock" placeholder="0.00" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Harga Penjual (Rp / Ton)</label>
+                <input type="number" id="buyPrice" placeholder="0" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Target Penawaran (Rp / Ton)</label>
+                <input type="number" id="targetPrice" placeholder="0" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Harga Jual (Rp / Ton)</label>
+                <input type="number" id="sellPrice" placeholder="0" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="flex items-end gap-2 sm:col-span-2 md:col-span-1">
+                <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2 rounded text-sm transition shadow">
+                    + Tambah ke Daftar
+                </button>
+                <button type="button" id="cancelBtn" onclick="resetForm()" class="hidden bg-gray-500 hover:bg-gray-600 text-white font-medium p-2 rounded text-sm transition shadow">
+                    Batal
+                </button>
+            </div>
+        </form>
+
+        <!-- Tabel Data Inputan -->
+        <div>
+            <h2 class="text-md font-semibold text-gray-700 mb-2">Daftar Sumber & Penawaran Ban</h2>
+            <div class="responsive-table">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-800 text-white text-xs uppercase tracking-wider">
+                            <th class="p-3">Sumber Ban</th>
+                            <th class="p-3">Lokasi</th>
+                            <th class="p-3 text-center">Map</th>
+                            <th class="p-3 text-right">Stok (Ton)</th>
+                            <th class="p-3 text-right">Harga Penjual / Ton</th>
+                            <th class="p-3 text-right">Target Penawaran / Ton</th>
+                            <th class="p-3 text-right">Harga Jual / Ton</th>
+                            <th class="p-3 text-center no-print">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable" class="divide-y divide-gray-200 text-sm">
+                        <!-- Data Javascript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tombol Proses -->
+        <div class="flex justify-center pt-2 no-print">
+            <button id="processBtn" onclick="processResults()" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-base transition transform active:scale-95 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                PROSES & HITUNG HASIL LABA
+            </button>
+        </div>
+
+        <!-- Ringkasan Hasil Kalkulasi -->
+        <div id="resultSection" class="hidden border-t-2 border-emerald-500 pt-6 space-y-6">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <h2 class="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <span class="bg-emerald-100 text-emerald-800 p-1.5 rounded no-print">📊</span> Ringkasan Hasil Analisis Laba Usaha
+                </h2>
+                
+                <!-- Tombol Print Hasil -->
+                <button onclick="window.print()" class="w-full md:w-auto no-print bg-slate-700 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg text-sm flex items-center justify-center gap-2 transition shadow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Cetak / Simpan PDF
+                </button>
+            </div>
+
+            <!-- Card Statistik Utama -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <p class="text-xs text-gray-500 font-medium">Total Volume Ban</p>
+                    <p id="totalStockCard" class="text-xl md:text-2xl font-bold text-gray-800 mt-1">0 Ton</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <p class="text-xs text-gray-500 font-medium">Total Modalan (Pembelian)</p>
+                    <p id="totalCapitalCard" class="text-xl md:text-2xl font-bold text-gray-800 mt-1">Rp 0</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <p class="text-xs text-gray-500 font-medium">Total Omset (Penjualan)</p>
+                    <p id="totalRevenueCard" class="text-xl md:text-2xl font-bold text-blue-600 mt-1">Rp 0</p>
+                </div>
+                <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+                    <p class="text-xs text-emerald-700 font-medium">Total Estimasi Laba Bersih</p>
+                    <p id="totalProfitCard" class="text-xl md:text-2xl font-extrabold text-emerald-600 mt-1">Rp 0</p>
+                </div>
+            </div>
+
+            <!-- Tabel Detail Hasil per Sumber -->
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Rincian Laba per Sumber Ban (Satuan Ton)</h3>
+                <div class="responsive-table">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-emerald-800 text-white text-xs uppercase tracking-wider">
+                                <th class="p-3">Sumber Ban</th>
+                                <th class="p-3 text-right">Volume (Ton)</th>
+                                <th class="p-3 text-right">Harga Beli / Ton</th>
+                                <th class="p-3 text-right">Harga Jual / Ton</th>
+                                <th class="p-3 text-right">Margin Laba / Ton</th>
+                                <th class="p-3 text-right">Total Modalan</th>
+                                <th class="p-3 text-right">Total Est. Laba</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultTable" class="divide-y divide-gray-200 text-sm">
+                            <!-- Data Hasil Kalkulasi -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Pemrosesan -->
+    <script>
+        let tireData = [];
+
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(number);
+        };
+
+        const formatTon = (number) => {
+            return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(number) + ' Ton';
+        };
+
+        document.getElementById('tireForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const editId = document.getElementById('editId').value;
+            const itemData = {
+                source: document.getElementById('source').value,
+                location: document.getElementById('location').value,
+                mapUrl: document.getElementById('mapUrl').value,
+                stock: parseFloat(document.getElementById('stock').value) || 0,
+                buyPrice: parseFloat(document.getElementById('buyPrice').value) || 0,
+                targetPrice: parseFloat(document.getElementById('targetPrice').value) || 0,
+                sellPrice: parseFloat(document.getElementById('sellPrice').value) || 0,
+            };
+
+            if (editId) {
+                const index = tireData.findIndex(item => item.id === Number(editId));
+                if (index !== -1) {
+                    tireData[index] = { id: Number(editId), ...itemData };
+                }
+            } else {
+                tireData.push({ id: Date.now(), ...itemData });
+            }
+
+            resetForm();
+            renderTable();
+            document.getElementById('resultSection').classList.add('hidden');
+        });
+
+        function editItem(id) {
+            const item = tireData.find(data => data.id === id);
+            if (!item) return;
+
+            document.getElementById('editId').value = item.id;
+            document.getElementById('source').value = item.source;
+            document.getElementById('location').value = item.location;
+            document.getElementById('mapUrl').value = item.mapUrl;
+            document.getElementById('stock').value = item.stock;
+            document.getElementById('buyPrice').value = item.buyPrice;
+            document.getElementById('targetPrice').value = item.targetPrice;
+            document.getElementById('sellPrice').value = item.sellPrice;
+
+            document.getElementById('submitBtn').innerText = '✓ Simpan';
+            document.getElementById('submitBtn').className = 'w-full bg-amber-600 hover:bg-amber-700 text-white font-medium p-2 rounded text-sm transition shadow';
+            document.getElementById('cancelBtn').classList.remove('hidden');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('tireForm').reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('submitBtn').innerText = '+ Tambah ke Daftar';
+            document.getElementById('submitBtn').className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2 rounded text-sm transition shadow';
+            document.getElementById('cancelBtn').classList.add('hidden');
+        }
+
+        function deleteItem(id) {
+            tireData = tireData.filter(data => data.id !== id);
+            renderTable();
+            document.getElementById('resultSection').classList.add('hidden');
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('dataTable');
+            tbody.innerHTML = '';
+
+            if (tireData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-400">Belum ada data sumber ban tersimpan. Silahkan isi form di atas.</td></tr>`;
+                return;
+            }
+
+            tireData.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 transition";
+                row.innerHTML = `
+                    <td data-label="Sumber Ban" class="p-3 font-medium text-gray-900">${item.source}</td>
+                    <td data-label="Lokasi" class="p-3">${item.location}</td>
+                    <td data-label="Map" class="p-3 text-center">
+                        ${item.mapUrl ? `<a href="${item.mapUrl}" target="_blank" class="text-blue-600 hover:underline font-semibold">Buka Map</a>` : '<span class="text-gray-400">-</span>'}
+                    </td>
+                    <td data-label="Stok (Ton)" class="p-3 md:text-right font-bold">${formatTon(item.stock)}</td>
+                    <td data-label="Harga Penjual / Ton" class="p-3 md:text-right">${formatRupiah(item.buyPrice)}</td>
+                    <td data-label="Target Penawaran / Ton" class="p-3 md:text-right text-gray-500">${formatRupiah(item.targetPrice)}</td>
+                    <td data-label="Harga Jual / Ton" class="p-3 md:text-right">${formatRupiah(item.sellPrice)}</td>
+                    <td data-label="Aksi" class="p-3 text-center action-cell no-print">
+                        <div class="flex justify-end md:justify-center gap-2 mt-2 md:mt-0">
+                            <button onclick="editItem(${item.id})" class="text-amber-600 hover:text-amber-800 font-medium text-xs bg-amber-50 border border-amber-200 px-3 py-1 rounded">Edit</button>
+                            <button onclick="deleteItem(${item.id})" class="text-red-500 hover:text-red-700 font-medium text-xs bg-red-50 border border-red-200 px-3 py-1 rounded">Hapus</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function processResults() {
+            if (tireData.length === 0) {
+                alert("Harap masukkan setidaknya satu data sumber ban sebelum memproses hasil!");
+                return;
+            }
+
+            const resultTable = document.getElementById('resultTable');
+            resultTable.innerHTML = '';
+
+            let grandTotalStock = 0;
+            let grandTotalCapital = 0;
+            let grandTotalRevenue = 0;
+            let grandTotalProfit = 0;
+
+            tireData.forEach(item => {
+                const marginPerTon = item.sellPrice - item.buyPrice;
+                const totalCapital = item.buyPrice * item.stock;
+                const totalRevenue = item.sellPrice * item.stock;
+                const totalProfit = marginPerTon * item.stock;
+
+                grandTotalStock += item.stock;
+                grandTotalCapital += totalCapital;
+                grandTotalRevenue += totalRevenue;
+                grandTotalProfit += totalProfit;
+
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 transition";
+                row.innerHTML = `
+                    <td data-label="Sumber Ban" class="p-3 font-medium text-gray-900">${item.source}</td>
+                    <td data-label="Volume (Ton)" class="p-3 md:text-right font-semibold">${formatTon(item.stock)}</td>
+                    <td data-label="Harga Beli / Ton" class="p-3 md:text-right">${formatRupiah(item.buyPrice)}</td>
+                    <td data-label="Harga Jual / Ton" class="p-3 md:text-right">${formatRupiah(item.sellPrice)}</td>
+                    <td data-label="Margin Laba / Ton" class="p-3 md:text-right font-medium ${marginPerTon >= 0 ? 'text-green-600' : 'text-red-600'}">
+                        ${formatRupiah(marginPerTon)}
+                    </td>
+                    <td data-label="Total Modalan" class="p-3 md:text-right text-gray-600">${formatRupiah(totalCapital)}</td>
+                    <td data-label="Total Est. Laba" class="p-3 md:text-right font-bold ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}">
+                        ${formatRupiah(totalProfit)}
+                    </td>
+                `;
+                resultTable.appendChild(row);
+            });
+
+            document.getElementById('totalStockCard').innerText = formatTon(grandTotalStock);
+            document.getElementById('totalCapitalCard').innerText = formatRupiah(grandTotalCapital);
+            document.getElementById('totalRevenueCard').innerText = formatRupiah(grandTotalRevenue);
+            document.getElementById('totalProfitCard').innerText = formatRupiah(grandTotalProfit);
+
+            const resultSection = document.getElementById('resultSection');
+            resultSection.classList.remove('hidden');
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
